@@ -1,0 +1,52 @@
+# services:
+#   fastapi:
+#     build: .
+#     container_name: rag-pdf-agent
+#     ports:
+#       - "8000:8000"
+#     environment:
+#       - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+#       - HF_HOME=/app/.cache/huggingface
+#       - CHAT_MODEL_PATH=/app/models/Qwen3-14B-local
+#     volumes:
+#       - ./data:/app/data
+#       - ./db:/app/db
+#       - ./weights:/app/weights:ro
+#       - hf_cache:/app/.cache/huggingface
+#       - ./models/Qwen3-14B-local:/app/models/Qwen3-14B-local:ro
+#     gpus: all
+
+# volumes:
+#   hf_cache:
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  fastapi:
+    build: .
+    container_name: rag-pdf-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./data:/app/data
+      - ./db:/app/db
+    depends_on:
+      - ollama
+
+volumes:
+  ollama_storage:

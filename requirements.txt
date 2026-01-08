@@ -1,0 +1,34 @@
+# --- Web Framework ---
+fastapi
+uvicorn[standard]
+python-multipart
+
+# --- LangChain + Vector DB ---
+langchain-core
+langchain-community
+langchain-chroma
+langchain-text-splitters
+langchain-classic
+
+# --- Hugging Face (chat endpoint + embeddings) ---
+langchain-huggingface
+huggingface-hub
+sentence-transformers
+
+# --- OCR locale (DotsOCR / transformers) ---
+transformers
+accelerate
+safetensors
+qwen-vl-utils
+torch
+
+# --- PDF, Immagini ---
+pymupdf
+pdf2image
+pillow
+pytesseract
+
+# --- Utilities ---
+pydantic
+typing-extensions
+tqdm
