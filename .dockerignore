@@ -6,3 +6,5 @@ venv/
 .venv/
 data/
 db/
+weights/
+models/
