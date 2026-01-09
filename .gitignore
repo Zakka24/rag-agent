@@ -1,17 +1,13 @@
-# Cartelle dell'IDE e virtual env
 .idea/
 .vscode/
 .venv/
 venv/
 
-# Python cache (questo pattern vale per tutte le sottocartelle)
 __pycache__/
 *.pyc
 
-# File di ambiente con password (FONDAMENTALE)
 .env
 
-# Cartelle dati pesanti (senza il punto davanti, se si chiamano "data", "db" ecc.)
 data/
 db/
 models/

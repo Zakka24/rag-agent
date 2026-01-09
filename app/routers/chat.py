@@ -1,11 +1,11 @@
 # app/routers/chat.py
 from fastapi import APIRouter, UploadFile, File, Header, Depends
 from app.schemas import ChatRequest, ChatResponse, UploadResponse
-from app.dependencies import get_model_instance, get_session_store
+from app.dependencies import get_model_instance, get_session_store, verify_api_key
 from app.services import RagService
 from src.model import Model
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 def get_rag_service(
     model: Model = Depends(get_model_instance),

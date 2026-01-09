@@ -1,82 +1,13 @@
 from pathlib import Path
+import os
 
 BASE_DIR = Path(__file__).parent.parent 
 DATA_FOLDER = BASE_DIR / "data"
 
 DISCLAIMER = "\n\n\n**Le informazioni sono state estratte dal testo fornito e potrebbero essere incomplete.**"
 
-# STANDARD_PROMPT = (
-#     "Sei un assistente legale specializzato nell’analisi di contratti notarili. Riceverai il testo integrale di un contratto preliminare di compravendita, "
-#     "locazione o altro. Il tuo compito è leggere l’intero documento e restituire un report strutturato con le seguenti informazioni, la pagina dove si trova l'informazione, e una citazione del testo "
-#     "anche se sono sparse nel testo:"
-#     'Dati generali del contratto'
-#     'Numero di Repertorio/Trascrizione: il numero indicato come “N. … di Repertorio” o “di Trascrizione”'
-#     'Numero di Raccolta: il numero indicato come “N. … di Raccolta”.'
-#     'Data di sottoscrizione: la data esatta in cui il contratto è stato firmato. È spesso riportata come “L’anno … il giorno … (data in formato …)”; riportala nel formato GG/MM/AAAA.\n\n'
-#     # 'Data di sottoscrizione: la data esatta in cui il contratto è stato firmato.'
-#     'Durate e scadenze contrattuali:'
-#     '- Elenca TUTTE le durate e le scadenze presenti nel contratto, non solo una.\n'
-#     '- Considera, a titolo esemplificativo e non esaustivo:\n'
-#     '- durata del contratto preliminare\n'
-#     '- durata del contratto definitivo\n'
-#     '- durata di eventuali diritti reali (es. diritto di superficie, servitù, ecc.)\n'
-#     '- durata di eventuali opzioni, proroghe, rinnovi, accordi accessori\n'
-#     '- Per ogni durata trovata indica:\n'
-#     '- il tipo di rapporto a cui si riferisce (es. "Contratto preliminare", "Contratto definitivo", "diritto di superficie", "opzione di rinnovo", "proroga", ecc.)\n'
-#     '- la durata (es. "36 mesi", "30 anni")\n'
-#     '- il dies a quo (da quando decorre: es. “dalla sua sottoscrizione”, “dalla data di stipula del definitivo”, ecc.)\n'
-#     '- eventuali condizioni o estensioni (es. “con possibilità di proroga di ulteriori 24 mesi dietro pagamento di € 3.000,00”)\n'
-#     '- Mantieni la formulazione il più vicino possibile al testo originale, senza inventare nulla.\n'
-#     '- SE ci sono più durate, NON sceglierne una sola: elencale tutte.\n'
-#     '- Se non trovi alcuna durata o scadenza espressa, scrivi “Non presente”.\n\n'
-
-#     'Durata del rinnovo: durata di eventuali rinnovi automatici. '
-#     'Il rinnovo può essere espresso con formule come:\n'
-#     'con facoltà di rinnovo per X anni\n'
-#     'rinnovabile per ulteriori X anni\n'
-#     'rinnovato automaticamente per X anni\n'
-#     'per ulteriori X mesi\n'
-#     'rinnovabile tacitamente per periodi di X anni\n'
-#     'rinnovo del contratto per X anni\n'
-#     'prorogato per X anni\n'
-#     'ulteriore periodo di X anni\n'
-#     'con possibilità di prolungamento di X anni\n\n'
-
-#     'Oggetto del contratto: leggi la sezione “Oggetto” e assegna la categoria appropriata tra queste opzioni, se ne è presente più di una, mostramele tutte quante: Locazione, Diritti di superficie, Diritti di servitù, Esproprio, Occupazione, Temporanea, Compravendita, Royalty, oppure “Non specificato”.\n\n '
-#     'Beneficiari (parti del contratto) – Per ciascuna persona fisica o società menzionata come parte contraente:\n'
-#     'Nome e cognome (o ragione sociale).\n'
-#     'Data e luogo di nascita (per le persone fisiche), come appare nel contratto.\n'
-#     'Indirizzo di residenza.\n'
-#     'Codice Fiscale.\n'
-#     'IBAN.\n'
-#     'Numero di Telefono\n\n'
-#     'Informazioni sui terreni (Land Parcels Information): per ogni foglio particella indicata, estrai:\n'
-#     '- Numero di foglio e relativo numero di particella.\n'
-#     '- Comune/Città.\n'
-#     '- Estensione in metri quadrati (m² o are).\n'
-#     '- Categoria e classe catastale.\n'
-#     '- Rendita catastale dominicale (R.D.) e rendita catastale agraria (R.A.), se presenti.\n'
-#     '- Tipo di proprietà (Proprietà, Nuda Proprietà, Usufrutto, Enfiteusi).\n'
-#     '- Quota di proprietà (espressa come frazione o percentuale).\n\n'
-#     'Informazioni sul pagamento:\n'
-#     'Oggetto del pagamento (ad esempio “caparra”, “corrispettivo per l’acquisto del terreno” etc.).\n'
-#     'Corrispettivo (specifica se è indicato un importo in euro, un prezzo per ettaro o una percentuale).\n'
-#     'Tassa di registrazione in percentuale, se indicata.\n'
-#     'Beneficiario del pagamento (chi riceve il denaro).\n'
-#     'Eventuale ritardo nel pagamento in giorni previsto dal contratto.\n'
-#     'Se il contratto contiene più beneficiari o più terreni, elencali tutti in array separati.\n'
-#     'Se un campo non è menzionato, indica chiaramente “Non presente”. \n\n'
-#     'Formato di uscita: Restituisci i dati SEMPRE in forma tabellare. Ogni tabella conterrà i dati di una sezione. Le sezioni sono\n'
-#     '- Dati generali del contratto\n'
-#     '- Durate e scadenze contrattuali:\n'
-#     '- Durata del rinnovo\n'
-#     '- Oggetto del contratto\n'
-#     '- Beneficiari\n'
-#     '- Informazioni sui terreni\n'
-#     '- Informazioni sul pagamento\n'
-#     '- Eventuali altre informazioni.\n\n'
-#     'Non aggiungere nient\'altro che non sia tra quello esplocitamente indicato'
-# )
+API_KEY = os.getenv("API_KEY")
+API_KEY_NAME = "X-API-Key" 
 
 STANDARD_PROMPT = (
     'Sei un assistente legale specializzato nell’analisi di contratti notarili.'

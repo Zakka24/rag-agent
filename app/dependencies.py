@@ -1,57 +1,41 @@
-# from typing import Dict
-# from functools import lru_cache
-# from src.model import Model
-# from app.config import OLLAMA_URL
-
-# user_sessions_db: Dict[str, dict] = {}
-
-# @lru_cache()
-# def get_model_instance():
-#     """
-#     Inizializza il modello una volta sola e lo riutilizza (Singleton).
-#     """
-#     print("Inizializzazione Modello LLM...")
-#     return Model(
-#         # embeddings_model='embeddinggemma:300m',
-#         embeddings_model='qwen3-embedding:8b',
-#         chat_model='qwen3:14b',
-#         ollama_host=OLLAMA_URL
-#     )
-
-# def get_session_store() -> Dict[str, dict]:
-#     return user_sessions_db
-
 from typing import Dict
 from functools import lru_cache
 from src.model import Model
 import os
 from pathlib import Path
+from fastapi import Security, HTTPException, status, Depends
+from fastapi.security import APIKeyHeader
+from app.config import API_KEY, API_KEY_NAME
 
 user_sessions_db: Dict[str, dict] = {}
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 @lru_cache()
 def get_model_instance():
     print("Inizializzazione Modello LLM...")
 
-    local_model_dir = os.getenv("CHAT_MODEL_PATH")
-    if not local_model_dir:
-        base_dir = Path(__file__).resolve().parents[1]
-        # local_model_dir = str(base_dir / "models" / "Qwen3-14B-local")
-        local_model_dir = str(base_dir / "models" / "Qwen3-4B-Thinking-2507")
+    # local_model_dir = os.getenv("CHAT_MODEL_PATH")
+    # if not local_model_dir:
+    #     base_dir = Path(__file__).resolve().parents[1]
+    #     # local_model_dir = str(base_dir / "models" / "Qwen3-14B-local")
+    #     local_model_dir = str(base_dir / "models" / "Qwen3-4B-Thinking-2507")
 
     base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
-    # print(local_model_dir)
-
     return Model(
-        # embeddings_model="Qwen/Qwen3-Embedding-8B",
         embeddings_model="qwen3-embedding:0.6b",
-        # chat_model="Qwen/Qwen3-14B",
-        # chat_model=local_model_dir,
-        # chat_model='ServiceNow-AI/Apriel-1.6-15b-Thinker:Q4_K_M',
-        chat_model='qwen3-vl:8b',
+        chat_model='qwen3:4b-thinking-2507-q4_K_M',
         base_url=base_url
     )
 
 def get_session_store() -> Dict[str, dict]:
     return user_sessions_db
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    if api_key == API_KEY:
+        return api_key
+    
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Credenziali non valide o mancanti."
+    )
