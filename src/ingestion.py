@@ -79,24 +79,9 @@ class Ingestor:
         if self.file_path.suffix != '.pdf':
             raise ValueError('The file must be a pdf.')
 
-        # Load the PDF file
-        # loader = UnstructuredPDFLoader(str(self.file_path.absolute()), languages=['ita'], strategy='hi_res')
         print(f"Caricamento documento: {self.file_path.name}")
-        loader = SmartPDFLoader(str(self.file_path), lang="ita")
-        loaded_documents = loader.load()
-
-        # ollama_url = self.model.base_url
-
-        # dotsocr_path = os.getenv("DOTSOCR_PATH", "./weights/DotsOCR")
-
-        # loader = SmartPDFLoader(
-        #     file_path=self.file_path,
-        #     model_path=dotsocr_path,
-        #     lang="ita",
-        #     dpi=300,
-        #     max_new_tokens=4096,
-        # )
-        
+        loader = SmartPDFLoader(str(self.file_path))
+        loaded_documents = loader.load()        
 
         if not loaded_documents:
             raise RuntimeError("OCR fallito: nessun testo estratto dal PDF.")
@@ -105,33 +90,27 @@ class Ingestor:
             page = doc.metadata.get("page")
             doc.metadata.setdefault("source", self.file_path.name)
             doc.metadata.setdefault("ocr", False)
-            if page is not None and not doc.page_content.startswith(f"[PAGINA {page}]"):
+            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
                 doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
-            # print(page)
-            # print(doc.page_content)
+        
+        separators = [
+            "\n\n",
+            "--- TABELLE",
+            "\n",
+            ". ",
+            " ",
+            ""
+        ] 
 
-        # Split the documents into chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,
-                                                       chunk_overlap=self.chunk_overlap,
-                                                       )
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=separators, keep_separator=True)
         documents = text_splitter.split_documents(loaded_documents)
         documents = [d for d in documents if d.page_content and d.page_content.strip()]
 
         if not documents:
             raise RuntimeError("Nessun chunk valido generato (testo vuoto).")
 
-
-        for idx, doc in enumerate(documents):
-            page = doc.metadata.get("page")
-            doc.metadata.setdefault("source", self.file_path.name)
-            doc.metadata.setdefault("ocr", False)
-            doc.metadata["chunk_id"] = idx
-
-            # prepend pagina nel testo, così il modello può citarla
-            if page is not None:
-                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
-
         self.documents = loaded_documents
+
         # Generate unique IDs for the documents
         uuids = [str(uuid4()) for _ in range(len(documents))]
 
