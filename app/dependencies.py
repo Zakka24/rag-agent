@@ -2,8 +2,7 @@ from typing import Dict
 from functools import lru_cache
 from src.model import Model
 import os
-from pathlib import Path
-from fastapi import Security, HTTPException, status, Depends
+from fastapi import Security, HTTPException, status
 from fastapi.security import APIKeyHeader
 from app.config import API_KEY, API_KEY_NAME
 
@@ -12,19 +11,13 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 @lru_cache()
 def get_model_instance():
-    print("Inizializzazione Modello LLM...")
+    print("Inizializzazione Modello (vLLM + HF Embeddings)...")
 
-    # local_model_dir = os.getenv("CHAT_MODEL_PATH")
-    # if not local_model_dir:
-    #     base_dir = Path(__file__).resolve().parents[1]
-    #     # local_model_dir = str(base_dir / "models" / "Qwen3-14B-local")
-    #     local_model_dir = str(base_dir / "models" / "Qwen3-4B-Thinking-2507")
-
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    base_url = os.getenv("VLLM_BASE_URL", "http://vllm:8000/v1")
 
     return Model(
-        embeddings_model="qwen3-embedding:0.6b",
-        chat_model='qwen3:4b-thinking-2507-q4_K_M',
+        embeddings_model="Qwen/Qwen3-Embedding-0.6B", 
+        chat_model='Qwen/Qwen3-4B-Thinking-2507', 
         base_url=base_url
     )
 

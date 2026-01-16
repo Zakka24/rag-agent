@@ -9,11 +9,11 @@ langchain-community
 langchain-chroma
 langchain-text-splitters
 langchain-classic
-langchain_ollama
+langchain-openai
 
 # --- Hugging Face (chat endpoint + embeddings) ---
-# langchain-huggingface
-# huggingface-hub
+langchain-huggingface
+huggingface-hub
 sentence-transformers
 
 # --- OCR locale (DotsOCR / transformers) ---

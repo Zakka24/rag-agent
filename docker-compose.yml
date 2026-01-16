@@ -1,32 +1,29 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
+  vllm:
+    build:
+      context: .
+      dockerfile: Dockerfile.vllm
+    container_name: vllm_server
+    shm_size: "16gb"
+    gpus: all
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
     ports:
-      - "11434:11434"
+      - "8001:8000"
     volumes:
-      - ollama_storage:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - ~/.cache/huggingface:/root/.cache/huggingface
 
   fastapi:
     build: .
-    container_name: rag-pdf-agent
+    container_name: rag-pdf-agent-vllm
     ports:
       - "8000:8000"
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - VLLM_BASE_URL=http://vllm:8000/v1 
       - API_KEY=${API_KEY}
     volumes:
       - ./data:/app/data
       - ./db:/app/db
+      - ~/.cache/huggingface:/root/.cache/huggingface
     depends_on:
-      - ollama
-
-volumes:
-  ollama_storage:
+      - vllm
