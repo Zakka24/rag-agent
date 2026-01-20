@@ -17,14 +17,14 @@ STANDARD_PROMPT = (
     'Leggere l’intero documento ed estrarre SEMPRE le informazioni richieste, indicando SEMPRE per ciascuna:'
     '- la pagina. Se le informazioni sono sparse in più pagine, indica tutte le pagine.\n'
     '- l\'infomazione ricava'
-    '- una citazione testuale\n'
+    '- una brevissima citazione testuale\n'
     '- se un dato che analizzi tra quelli richiesto ti sembra abbia un formato strano, indicalo comunque aggiungendo il flag [POSSIBILE SCRITTA A MANO]\n'
 
     'REGOLE GENERALI:\n'
     '- Non inventare nulla.\n'
     '- Usa formulazioni il più possibile fedeli al testo originale.\n'
     '- Se un’informazione non è esplicitamente presente, rispondi “Non presente”.\n'
-    '- Se sono presenti più valori (durate, parti, terreni, pagamenti), elencali TUTTI.\n'
+    # '- Se sono presenti più valori (durate, parti, terreni, pagamenti), elencali TUTTI.\n'
     '- Restituisci SEMPRE l’output in formato tabellare, una tabella per sezione.\n'
 
     'SEZIONI DA ESTRARRE:\n'
@@ -74,10 +74,6 @@ STANDARD_PROMPT = (
     '- Tassa di registrazione (%)\n'
     '- Beneficiario\n'
     '- Eventuali termini di ritardo\n'
-
-    '8) EVENTUALI ALTRE INFORMAZIONI RILEVANTI\n'
-    '- Qui se per i beneficiari non trovi un IBAN, fornisci se presente, tutti gli IBAN presenti nel documento. Non è detto che nella stessa sezione del documento in cui '
-    'trovi nel informazioni dei beneficiari trovi anche l\'informazione dell\'IBAN\n'
 
     'FORMATO DI USCITA:\n'
     '- Tabelle separate per ciascuna sezione\n'

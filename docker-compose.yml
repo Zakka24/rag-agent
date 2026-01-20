@@ -13,15 +13,15 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-
   fastapi:
     build: .
     container_name: rag-pdf-agent
     ports:
       - "8000:8000"
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - API_KEY=${API_KEY}
+      - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - ./data:/app/data
       - ./db:/app/db

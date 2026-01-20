@@ -9,25 +9,19 @@ langchain-community
 langchain-chroma
 langchain-text-splitters
 langchain-classic
-langchain_ollama
+langchain-google-genai
+chromadb
+langchain-google-genai
+langchain-ollama
 
-# --- Hugging Face (chat endpoint + embeddings) ---
-# langchain-huggingface
-# huggingface-hub
-sentence-transformers
-
-# --- OCR locale (DotsOCR / transformers) ---
-transformers
-accelerate
-safetensors
-qwen-vl-utils
-torch
-
-# --- PDF, Immagini ---
+# --- PDF & Immagini ---
 pymupdf
 pdf2image
 pillow
 pytesseract
+deepdoctection[full]
+numpy
+opencv-python
 
 # --- Utilities ---
 pydantic

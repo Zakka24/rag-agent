@@ -14,17 +14,12 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 def get_model_instance():
     print("Inizializzazione Modello LLM...")
 
-    # local_model_dir = os.getenv("CHAT_MODEL_PATH")
-    # if not local_model_dir:
-    #     base_dir = Path(__file__).resolve().parents[1]
-    #     # local_model_dir = str(base_dir / "models" / "Qwen3-14B-local")
-    #     local_model_dir = str(base_dir / "models" / "Qwen3-4B-Thinking-2507")
-
     base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
     return Model(
         embeddings_model="qwen3-embedding:0.6b",
-        chat_model='qwen3:4b-thinking-2507-q4_K_M',
+        chat_model='gemini-2.5-pro',
+        api_key = os.getenv("GEMINI_API_KEY"),
         base_url=base_url
     )
 

@@ -42,16 +42,6 @@ class PdfChat:
                         "ESCLUSIVAMENTE sul contesto fornito. Non assumere nulla che non sia "
                         "presente nel contesto. \n\n"
 
-                        "Il documento è un contratto preliminare di compravendita di terreni "
-                        "tra la “Parte Promittente Venditrice” e la “Parte Promittente Acquirente”. "
-                        "Il linguaggio legale può essere formale, ripetitivo o contenere varianti "
-                        "di termini simili. Considera correttamente sinonimi come:\n"
-                        "- firmato / sottoscritto\n"
-                        "- acquirente / parte promissaria acquirente\n"
-                        "- venditore / parte promittente venditrice\n"
-                        "- pagamento / corrispettivo / prezzo\n"
-                        "- mappale / particella catastale\n"
-
                         "SE trovi la risposta:\n"
                         "- estraila ESATTAMENTE dal contesto (mai inventare)\n"
                         "- riassumila in modo chiaro\n"
@@ -82,7 +72,7 @@ class PdfChat:
 
     def _define_retrieval_chain(self):
         self.retriever = self.ingestor.vector_store.as_retriever(
-            search_kwargs={"k": 50}
+            search_kwargs={"k": 20}
         )
 
         combine_docs_chain = create_stuff_documents_chain(
@@ -105,31 +95,3 @@ class PdfChat:
         print(result)
         
         return result["answer"]
-
-    # def chat(self):
-    #     """
-    #     Starts the chat interaction, allowing the user to ask questions based on the ingested PDF data.
-    #     """
-
-    #     while True:
-    #         query = input("Start the chat! \nTo quit, type 'q': ")
-    #         if query.lower() == 'q':
-    #             break
-
-    #         print("\nRICERCA DEI CHUNK RILEVANTI...\n")
-
-    #         docs = self.retriever.invoke(query)
-
-    #         for i, d in enumerate(docs, start=1):
-    #             page = d.metadata.get("page")
-    #             print("\n" + "=" * 80)
-    #             print(f"📄 CHUNK #{i}  (pagina: {page})")
-    #             print("=" * 80)
-    #             print(d.page_content[:1500])
-
-    #         print("\nGENERAZIONE RISPOSTA...\n")
-
-    #         result = self.retrieval_chain.invoke({"input": query})
-
-    #         print("Domanda fatta:", query)
-    #         print("Assistant: ", result["answer"], "\n\n")

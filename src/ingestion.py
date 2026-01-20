@@ -15,7 +15,7 @@ class Ingestor:
         Class to handle the ingestion of pdf documents into vector store.
     """
 
-    def __init__(self, file_name: str, model: Model, chunk_size=800, chunk_overlap: int = 150, user_id: str | None=None):
+    def __init__(self, file_name: str, model: Model, chunk_size=1000, chunk_overlap: int = 150, user_id: str | None=None):
         """
         Initialize the Ingestor class and immediately instantiate vector store.
 
@@ -85,13 +85,6 @@ class Ingestor:
 
         if not loaded_documents:
             raise RuntimeError("OCR fallito: nessun testo estratto dal PDF.")
-
-        for doc in loaded_documents:
-            page = doc.metadata.get("page")
-            doc.metadata.setdefault("source", self.file_path.name)
-            doc.metadata.setdefault("ocr", False)
-            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
-                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
         
         separators = [
             "\n\n",
@@ -100,7 +93,7 @@ class Ingestor:
             ". ",
             " ",
             ""
-        ] 
+        ]
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=separators, keep_separator=True)
         documents = text_splitter.split_documents(loaded_documents)
@@ -109,10 +102,38 @@ class Ingestor:
         if not documents:
             raise RuntimeError("Nessun chunk valido generato (testo vuoto).")
 
+        for doc in documents:
+            page = doc.metadata.get("page")
+            doc.metadata.setdefault("source", self.file_path.name)
+            doc.metadata.setdefault("ocr", False)
+            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
+                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
+
         self.documents = loaded_documents
 
-        # Generate unique IDs for the documents
+        # debug_file_name = f"{self.file_path.stem}_debug_chunks.txt"
+        # debug_path = self.data_folder / debug_file_name
+        
+        # print(f"Generazione file di debug chunk: {debug_path}")
+        # try:
+        #     with open(debug_path, "w", encoding="utf-8") as f:
+        #         f.write(f"REPORT DEBUG CHUNKS per: {self.file_path.name}\n")
+        #         f.write(f"Totale chunk generati: {len(documents)}\n")
+        #         f.write("="*60 + "\n\n")
+                
+        #         for i, doc in enumerate(documents):
+        #             f.write(f"--- CHUNK {i+1} ---\n")
+        #             f.write(f"METADATI: {doc.metadata}\n")
+        #             f.write(f"LUNGHEZZA: {len(doc.page_content)} caratteri\n")
+        #             f.write("-" * 20 + " INIZIO CONTENUTO " + "-" * 20 + "\n")
+        #             f.write(doc.page_content)
+        #             f.write("\n" + "-" * 20 + " FINE CONTENUTO " + "-" * 20 + "\n")
+        #             f.write("\n\n")
+                    
+        #     print(f"--> File di debug salvato correttamente.")
+        # except Exception as e:
+        #     print(f"Attenzione: Impossibile salvare file di debug: {e}")
+
         uuids = [str(uuid4()) for _ in range(len(documents))]
 
-        # Add documents to the vector store
         self.vector_store.add_documents(documents=documents, ids=uuids)
