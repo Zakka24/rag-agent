@@ -85,19 +85,34 @@ class Ingestor:
 
         if not loaded_documents:
             raise RuntimeError("OCR fallito: nessun testo estratto dal PDF.")
-        
-        separators = [
-            "\n\n",
-            "--- TABELLE",
-            "\n",
-            ". ",
-            " ",
-            ""
-        ]
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=separators, keep_separator=True)
-        documents = text_splitter.split_documents(loaded_documents)
-        documents = [d for d in documents if d.page_content and d.page_content.strip()]
+        text_documents = []
+        table_documents = []
+
+        for doc in loaded_documents:
+            page = doc.metadata['page']
+            doc.metadata.setdefault("source", self.file_path.name)
+            
+            if doc.metadata.get("type") == "text":
+                if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
+                    doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
+                text_documents.append(doc)
+            
+            elif doc.metadata.get("type") == "table":
+                table_documents.append(doc)
+            
+            else:
+                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
+                text_documents.append(doc)
+
+        text_splitter = RecursiveCharacterTextSplitter( 
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            separators=["\n\n", "\n", ". ", " ", ""],
+            strip_whitespace=True
+        )
+        split_text_docs = text_splitter.split_documents(text_documents)
+        documents = split_text_docs + table_documents
 
         if not documents:
             raise RuntimeError("Nessun chunk valido generato (testo vuoto).")

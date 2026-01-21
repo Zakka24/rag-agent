@@ -110,7 +110,7 @@ class SmartPDFLoader:
                 
                 doc = self._process_image_gpu(pil_image, Path(path).name, page_num)
                 if doc:
-                    results.append(doc)
+                    results.extend(doc)
                 
                 del pil_image
             
@@ -131,10 +131,23 @@ class SmartPDFLoader:
 
     def _process_image_gpu(self, pil_image, filename: str, page_num: int) -> Optional[Document]:
         """Logica di estrazione singola immagine (EasyOCR + DeepDoctection)"""
+        generated_docs = []
+
         try:
             img_array = np.array(pil_image)
             text_list = self.reader.readtext(img_array, detail=0, paragraph=True)
             raw_text = "\n".join(text_list)
+
+            if raw_text.strip():
+                generated_docs.append(Document(
+                    page_content=raw_text,
+                    metadata={
+                        "source": filename,
+                        "page": page_num,
+                        "ocr": True,
+                        "type": "text"
+                    }
+                ))
 
             tables_content = ""
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
@@ -147,15 +160,23 @@ class SmartPDFLoader:
                 doc_result = next(iter(df))
                 
                 if doc_result.tables:
-                    tables_content += "\n\n--- TABELLE STRUTTURATE ---\n"
                     for i, table in enumerate(doc_result.tables):
                         tables_content += f"\n[Tabella {i+1}]\n"
+
                         if hasattr(table, "csv") and table.csv:
                             for row in table.csv:
                                 clean_row = [str(cell).strip() if cell else "" for cell in row]
                                 tables_content += " | ".join(clean_row) + "\n"
-                        tables_content += "-"*30 + "\n"
 
+                        generated_docs.append(Document(
+                            page_content=tables_content,
+                            metadata={
+                                "source": filename,
+                                "page": page_num,
+                                "ocr": True,
+                                "type": "table"
+                            }
+                        ))
             except StopIteration:
                 pass
             except Exception as e:
@@ -166,20 +187,7 @@ class SmartPDFLoader:
                         os.remove(temp_pdf_path)
                     except OSError: pass
 
-            full_content = raw_text + tables_content
-            
-            if not full_content.strip():
-                return None
-
-            return Document(
-                page_content=full_content,
-                metadata={
-                    "source": filename,
-                    "page": page_num,
-                    "ocr": True,
-                    "has_tables": len(tables_content) > 0
-                }
-            )
+            return generated_docs
 
         except Exception as e:
             print(f"Errore critico GPU pagina {page_num}: {e}")
