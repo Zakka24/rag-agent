@@ -72,7 +72,7 @@ class PdfChat:
 
     def _define_retrieval_chain(self):
         self.retriever = self.ingestor.vector_store.as_retriever(
-            search_kwargs={"k": 20}
+            search_kwargs={"k": 15}
         )
 
         combine_docs_chain = create_stuff_documents_chain(
@@ -92,6 +92,10 @@ class PdfChat:
 
         result = self.retrieval_chain.invoke({"input": query})
 
-        print(result)
+        # for doc in result['context']:
+        #     page_num = doc.metadata.get('page', 'N/A')
+        #     print(f"--- PAGINA {page_num} ---")
+        #     print(doc.page_content)
+        #     print("\n")
         
         return result["answer"]
