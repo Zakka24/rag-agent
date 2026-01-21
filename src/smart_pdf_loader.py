@@ -6,29 +6,47 @@ import fitz  # PyMuPDF
 from pdf2image import convert_from_path
 import deepdoctection as dd
 from langchain_core.documents import Document
-import pytesseract
 from PIL import Image
+import numpy as np
+import easyocr
 
 class SmartPDFLoader:
     def __init__(
         self,
         file_path: str,
         dpi: int = 300,
-        lang: str = "ita"
+        lang: str = "it",
+        batch_size = 10
     ):
         self.file_path = str(file_path)
         self.dpi = dpi
         self.lang = lang
+        self.batch_size = batch_size
 
-        print("Inizializzazione DeepDoctection (Analyzer)...")
+        print("Inizializzazione DeepDoctection")
         self.analyzer = dd.get_dd_analyzer()
+
+        print("Inizializzazione EasyOcr")
+        self.reader = easyocr.Reader([self.lang], gpu=True)
 
     def load(self) -> List[Document]:
         pdf_path = Path(self.file_path)
         if not pdf_path.exists():
             raise FileNotFoundError(f"File not found: {self.file_path}")
+        
+        is_digital = self._check_if_digital(self.file_path)
 
-        pdf = fitz.open(self.file_path)
+        if is_digital:
+            return self._load_digital(self.file_path)
+        else:
+            return self._load_scanned_batched(self.file_path)
+        
+
+    def _load_digital(self, path: str) -> List[Document]:
+        result_docs: List[Document] = []
+        pdf_path = Path(path)
+
+        pdf = fitz.open(path)
         num_pages = len(pdf)
         result_docs: List[Document] = []
 
@@ -51,36 +69,74 @@ class SmartPDFLoader:
                         },
                     )
                 )
-            else:
-                print(f"  -> Pagina {page_num}: Testo nativo assente. Avvio IBRIDO (Tesseract + DeepDoctection)...")
-                hybrid_doc = self._process_page_hybrid(pdf_path, page_num)
-                if hybrid_doc:
-                    result_docs.append(hybrid_doc)
-                else:
-                    print(f"  -> Pagina {page_num}: Nessun testo trovato.")
 
         pdf.close()
         return result_docs
 
-    def _process_page_hybrid(self, pdf_path: Path, page_num: int) -> Optional[Document]:
-        temp_pdf_path = None
-        try:
-            images = convert_from_path(
-                str(pdf_path),
-                dpi=self.dpi,
-                first_page=page_num,
-                last_page=page_num,
-            )
+    def _load_scanned_batched(self, path: str) -> List[Document]:
+        """
+        Percorso ottimizzato per scansioni:
+        1. Converte N pagine in immagini IN PARALLELO (CPU Multi-core)
+        2. Elabora le immagini con GPU in sequenza rapida
+        """
+        results = []
+        
+        with fitz.open(path) as doc:
+            total_pages = len(doc)
+        
+        print(f"Elaborazione Scansione: {total_pages} pagine totali in batch da {self.batch_size}.")
+
+        for i in range(0, total_pages, self.batch_size):
+            start_page = i + 1
+            end_page = min(i + self.batch_size, total_pages)
             
-            if not images:
-                return None
+            print(f"  -> Preparazione batch {start_page}-{end_page}...")
+            
+            try:
+                images = convert_from_path(
+                    path,
+                    dpi=self.dpi,
+                    first_page=start_page,
+                    last_page=end_page,
+                    thread_count=4 
+                )
+            except Exception as e:
+                print(f"Errore conversione batch {start_page}-{end_page}: {e}")
+                continue
 
-            pil_image = images[0]
+            for idx, pil_image in enumerate(images):
+                page_num = start_page + idx
+                print(f"     -> GPU Processing Pagina {page_num}...")
+                
+                doc = self._process_image_gpu(pil_image, Path(path).name, page_num)
+                if doc:
+                    results.append(doc)
+                
+                del pil_image
+            
+            del images
 
-            raw_text = pytesseract.image_to_string(pil_image, lang=self.lang)
+        return results
+    
+    def _check_if_digital(self, path: str) -> bool:
+        """Controlla se la prima pagina contiene testo nativo."""
+        try:
+            with fitz.open(path) as doc:
+                if len(doc) > 0:
+                    text = doc[0].get_text().strip()
+                    return len(text) > 10
+        except Exception:
+            return False
+        return False
+
+    def _process_image_gpu(self, pil_image, filename: str, page_num: int) -> Optional[Document]:
+        """Logica di estrazione singola immagine (EasyOCR + DeepDoctection)"""
+        try:
+            img_array = np.array(pil_image)
+            text_list = self.reader.readtext(img_array, detail=0, paragraph=True)
+            raw_text = "\n".join(text_list)
 
             tables_content = ""
-            
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_pdf:
                 pil_image.save(temp_pdf.name, "PDF", resolution=self.dpi)
                 temp_pdf_path = temp_pdf.name
@@ -88,59 +144,46 @@ class SmartPDFLoader:
             try:
                 df = self.analyzer.analyze(path=temp_pdf_path)
                 df.reset_state()
-                
                 doc_result = next(iter(df))
                 
                 if doc_result.tables:
-                    tables_content += "\n\n"
-                    tables_content += "--- TABELLE STRUTTURATE ---\n"
-                    tables_content += "Usa questi dati se il testo sopra è disallineato.\n"
-                    
+                    tables_content += "\n\n--- TABELLE STRUTTURATE ---\n"
                     for i, table in enumerate(doc_result.tables):
                         tables_content += f"\n[Tabella {i+1}]\n"
-                        
                         if hasattr(table, "csv") and table.csv:
-                            try:
-                                for row in table.csv:
-                                    # Pulizia celle vuote
-                                    clean_row = [str(cell).strip() if cell else "" for cell in row]
-                                    tables_content += " | ".join(clean_row) + "\n"
-                            except Exception as e:
-                                tables_content += f"(Errore parsing righe CSV: {e})\n"
-                        else:
-                            tables_content += "(Struttura tabella rilevata ma non convertibile in CSV)\n"
-                        
+                            for row in table.csv:
+                                clean_row = [str(cell).strip() if cell else "" for cell in row]
+                                tables_content += " | ".join(clean_row) + "\n"
                         tables_content += "-"*30 + "\n"
 
             except StopIteration:
                 pass
             except Exception as e:
-                print(f"Warn: Errore parziale DeepDoctection su pagina {page_num}: {e}")
+                print(f"Warn: Errore tabelle pag {page_num}: {e}")
+            finally:
+                 if os.path.exists(temp_pdf_path):
+                    try:
+                        os.remove(temp_pdf_path)
+                    except OSError: pass
 
             full_content = raw_text + tables_content
-
+            
             if not full_content.strip():
                 return None
 
-            metadata: Dict[str, Any] = {
-                "source": pdf_path.name,
-                "page": page_num,
-                "ocr": True,
-                "ocr_engine": "hybrid_tesseract_dd",
-                "has_tables": len(tables_content) > 0
-            }
-
-            return Document(page_content=full_content, metadata=metadata)
+            return Document(
+                page_content=full_content,
+                metadata={
+                    "source": filename,
+                    "page": page_num,
+                    "ocr": True,
+                    "has_tables": len(tables_content) > 0
+                }
+            )
 
         except Exception as e:
-            print(f"Errore CRITICO pagina {page_num}: {e}")
+            print(f"Errore critico GPU pagina {page_num}: {e}")
             return None
-        finally:
-            if temp_pdf_path and os.path.exists(temp_pdf_path):
-                try:
-                    os.remove(temp_pdf_path)
-                except OSError:
-                    pass
 
 # def main():
 #     pdf_filename = "Serra Dario_superficie_servitú_rep.65.631_racc.24.117 (2).pdf"
