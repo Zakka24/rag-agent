@@ -25,6 +25,13 @@ services:
     volumes:
       - ./data:/app/data
       - ./db:/app/db
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       - ollama
 
