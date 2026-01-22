@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import UploadFile, HTTPException
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_core.documents import Document
 
 from src.ingestion import Ingestor
 from src.pdf_chat import PdfChat
@@ -26,6 +27,17 @@ class RagService:
         ingestor: Ingestor = session["ingestor"]
         docs = getattr(ingestor, "documents", [])
         
+        if not docs:
+            print(f"[{user_id}] Documenti non in memoria. Recupero dal Vector Store...")
+            db_data = ingestor.vector_store.get()
+            if db_data and db_data['documents']:
+                for text, metadata in zip(db_data['documents'], db_data['metadatas']):
+                    docs.append(Document(page_content=text, metadata=metadata))
+
+            docs = sorted(
+                docs, key=lambda d: d.metadata.get("chunk_index", 0)
+            )
+            
         if not docs:
             raise HTTPException(status_code=500, detail="Nessun documento indicizzato trovato.")
 
@@ -71,31 +83,32 @@ class RagService:
         user_data_folder.mkdir(parents=True, exist_ok=True)
         dest_path = user_data_folder / file.filename
 
-        session = self.get_session(user_id)
+        file_exists = dest_path.exists()
 
-        if dest_path.exists() and session and session.get("file_name") == file.filename:
-            answer = self.extract_info_standard(user_id)
-            session["standard_info"] = answer
-            return {
-                "message": "File già presente, uso sessione esistente.",
-                "file_already_exists": True,
-                "file_name": file.filename,
-                "standard_info": answer
-            }
+        if not file_exists:
+            with dest_path.open("wb") as f:
+                shutil.copyfileobj(file.file, f)
 
-        with dest_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
+            print(f"[{user_id}] File salvato su disco: {file.filename}")
+        else:
+            print(f"[{user_id}] File già presente. Salto il salvataggio.")
 
         ingestion = Ingestor(
             file_name=file.filename,
             model=self.model,
             user_id=user_id,
         )
-        print(f"[{user_id}] Ingestione PDF in corso...")
-        ingestion.ingest_file()
+
+        if not file_exists:
+            print(f"[{user_id}] Inizio indicizzazione (ingest_file)...")
+            try:
+                ingestion.ingest_file()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Errore durante l'ingestione: {str(e)}")
+        else:
+            print(f"[{user_id}] DB già esistente. Connessione effettuata senza re-ingestione.")
         
         chat = PdfChat(model=self.model, ingestor=ingestion)
-
         self.sessions[user_id] = {
             "file_path": dest_path,
             "file_name": file.filename,
@@ -107,8 +120,10 @@ class RagService:
         answer = self.extract_info_standard(user_id)
         self.sessions[user_id]["standard_info"] = answer
 
+        message = "File già presente, sessione ripristinata." if file_exists else "File caricato e indicizzato."
+
         return {
-            "message": "File PDF caricato e indicizzato con successo.",
+            "message": message,
             "file_already_exists": False,
             "file_name": file.filename,
             "standard_info": answer
