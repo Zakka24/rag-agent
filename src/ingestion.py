@@ -15,7 +15,7 @@ class Ingestor:
         Class to handle the ingestion of pdf documents into vector store.
     """
 
-    def __init__(self, file_name: str, model: Model, chunk_size=800, chunk_overlap: int = 150, user_id: str | None=None):
+    def __init__(self, file_name: str, model: Model, chunk_size=1000, chunk_overlap: int = 150, user_id: str | None=None):
         """
         Initialize the Ingestor class and immediately instantiate vector store.
 
@@ -92,22 +92,16 @@ class Ingestor:
             doc.metadata.setdefault("ocr", False)
             if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
                 doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
-        
-        separators = [
-            "\n\n",
-            "--- TABELLE",
-            "\n",
-            ". ",
-            " ",
-            ""
-        ] 
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=separators, keep_separator=True)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=["\n\n", "\n", ". ", " ", ""], keep_separator=True)
         documents = text_splitter.split_documents(loaded_documents)
         documents = [d for d in documents if d.page_content and d.page_content.strip()]
 
         if not documents:
             raise RuntimeError("Nessun chunk valido generato (testo vuoto).")
+        
+        for i, doc in enumerate(documents):
+            doc.metadata["chunk_index"] = i
 
         self.documents = loaded_documents
 
