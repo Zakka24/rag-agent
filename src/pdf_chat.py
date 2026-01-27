@@ -102,34 +102,12 @@ class PdfChat:
 
         result = self.retrieval_chain.invoke({"input": query})
 
+        # for doc in result['context']:
+        #     page_num = doc.metadata.get('page', 'N/A')
+        #     print(f"--- PAGINA {page_num} ---")
+        #     print(doc.page_content)
+        #     print("\n")
+
         print(result)
         
         return result["answer"]
-
-    # def chat(self):
-    #     """
-    #     Starts the chat interaction, allowing the user to ask questions based on the ingested PDF data.
-    #     """
-
-    #     while True:
-    #         query = input("Start the chat! \nTo quit, type 'q': ")
-    #         if query.lower() == 'q':
-    #             break
-
-    #         print("\nRICERCA DEI CHUNK RILEVANTI...\n")
-
-    #         docs = self.retriever.invoke(query)
-
-    #         for i, d in enumerate(docs, start=1):
-    #             page = d.metadata.get("page")
-    #             print("\n" + "=" * 80)
-    #             print(f"📄 CHUNK #{i}  (pagina: {page})")
-    #             print("=" * 80)
-    #             print(d.page_content[:1500])
-
-    #         print("\nGENERAZIONE RISPOSTA...\n")
-
-    #         result = self.retrieval_chain.invoke({"input": query})
-
-    #         print("Domanda fatta:", query)
-    #         print("Assistant: ", result["answer"], "\n\n")
