@@ -86,12 +86,12 @@ class Ingestor:
         if not loaded_documents:
             raise RuntimeError("OCR fallito: nessun testo estratto dal PDF.")
 
-        for doc in loaded_documents:
-            page = doc.metadata.get("page")
-            doc.metadata.setdefault("source", self.file_path.name)
-            doc.metadata.setdefault("ocr", False)
-            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
-                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
+        # for doc in loaded_documents:
+        #     page = doc.metadata.get("page")
+        #     doc.metadata.setdefault("source", self.file_path.name)
+        #     doc.metadata.setdefault("ocr", False)
+        #     if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
+        #         doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=["\n\n", "\n", ". ", " ", ""], keep_separator=True)
         documents = text_splitter.split_documents(loaded_documents)
@@ -102,6 +102,11 @@ class Ingestor:
         
         for i, doc in enumerate(documents):
             doc.metadata["chunk_index"] = i
+            page = doc.metadata.get("page")
+            doc.metadata.setdefault("source", self.file_path.name)
+            doc.metadata.setdefault("ocr", False)
+            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
+                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
 
         self.documents = loaded_documents
 
