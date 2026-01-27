@@ -15,7 +15,7 @@ services:
               capabilities: [gpu]
   fastapi:
     build: .
-    container_name: rag-pdf-agent
+    container_name: rag-gemini-pdf-agent
     ports:
       - "8000:8000"
     environment:
