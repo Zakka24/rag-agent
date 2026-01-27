@@ -18,7 +18,7 @@ def get_model_instance():
 
     return Model(
         embeddings_model="qwen3-embedding:0.6b",
-        chat_model='gemini-2.5-pro',
+        chat_model='gemini-3-pro-preview',
         api_key = os.getenv("GEMINI_API_KEY"),
         base_url=base_url
     )
