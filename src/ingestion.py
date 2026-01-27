@@ -32,8 +32,8 @@ class Ingestor:
         self.user_id = user_id
 
         base_folder = Path(__file__).parent.parent
-        base_data_folder = base_folder / 'data'
-        base_db_folder = base_folder / 'db'
+        base_data_folder = base_folder / 'data' / 'gemini'
+        base_db_folder = base_folder / 'db' / 'gemini'
 
         file_stem = Path(file_name).stem
 
