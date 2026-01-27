@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).parent.parent 
-DATA_FOLDER = BASE_DIR / "data"
+DATA_FOLDER = BASE_DIR / "data" / "gemini"
 
 DISCLAIMER = "\n\n\n**Le informazioni sono state estratte dal testo fornito e potrebbero essere incomplete.**"
 
