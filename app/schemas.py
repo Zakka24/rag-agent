@@ -10,5 +10,5 @@ class ChatResponse(BaseModel):
 class UploadResponse(BaseModel):
     message: str
     file_already_exists: bool
-    file_name: str
+    file_names: str
     standard_info: str | Any

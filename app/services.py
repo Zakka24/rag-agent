@@ -6,6 +6,8 @@ from langchain_classic.chains.combine_documents import create_stuff_documents_ch
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.documents import Document
 
+from typing import List
+
 from src.ingestion import Ingestor
 from src.pdf_chat import PdfChat
 from src.model import Model
@@ -62,62 +64,62 @@ class RagService:
             document_prompt=doc_prompt,
             document_separator="\n\n"
         )
-
-        risposta = chain.invoke({"context": docs})
+        try:
+            risposta = chain.invoke({"context": docs})
+        except Exception as e:
+            print(f"[{user_id}] Errore imprevisto LLM: {e}")
+            raise HTTPException(status_code=500, detail=f"Errore nella generazione della risposta: {str(e)}")
+        
         return risposta + DISCLAIMER
 
-    def process_upload(self, user_id: str, file: UploadFile):
-        if not file.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="Il file deve essere un PDF.")
-
+    def process_upload(self, user_id: str, files: List[UploadFile]):
         user_data_folder = DATA_FOLDER / user_id
         user_data_folder.mkdir(parents=True, exist_ok=True)
-        dest_path = user_data_folder / file.filename
 
-        file_exists = dest_path.exists()
+        ingestor = Ingestor(model=self.model, user_id=user_id)
 
-        if not file_exists:
+        saved_paths = []
+        filenames = []
+
+        for file in files:
+            if not file.filename.lower().endswith(".pdf"):
+                continue
+            
+            dest_path = user_data_folder / file.filename
+            filenames.append(file.filename)
+            saved_paths.append(dest_path)
+            
             with dest_path.open("wb") as f:
                 shutil.copyfileobj(file.file, f)
+            print(f"[{user_id}] File salvato: {file.filename}")
 
-            print(f"[{user_id}] File salvato su disco: {file.filename}")
-        else:
-            print(f"[{user_id}] File già presente. Salto il salvataggio.")
+        if not saved_paths:
+            raise HTTPException(status_code=400, detail="Nessun PDF valido fornito.")
 
-        ingestion = Ingestor(
-            file_name=file.filename,
-            model=self.model,
-            user_id=user_id,
-        )
+        print(f"[{user_id}] Ingestione di {len(saved_paths)} nuovi file...")
+        try:
+            ingestor.ingest_files(saved_paths)
+        except Exception as e:
+            shutil.rmtree(user_data_folder)
+            raise HTTPException(status_code=500, detail=f"Errore ingestione: {str(e)}")
 
-        if not file_exists:
-            print(f"[{user_id}] Inizio indicizzazione (ingest_file)...")
-            try:
-                ingestion.ingest_file()
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Errore durante l'ingestione: {str(e)}")
-        else:
-            print(f"[{user_id}] DB già esistente. Connessione effettuata senza re-ingestione.")
-        
-        chat = PdfChat(model=self.model, ingestor=ingestion)
+        chat = PdfChat(model=self.model, ingestor=ingestor)
         self.sessions[user_id] = {
-            "file_path": dest_path,
-            "file_name": file.filename,
-            "ingestor": ingestion,
+            "file_paths": saved_paths,
+            "file_names": filenames,
+            "ingestor": ingestor,
             "chat": chat,
-            "standard_info": None,
+            "standard_info": None
         }
 
         answer = self.extract_info_standard(user_id)
         self.sessions[user_id]["standard_info"] = answer
 
-        message = "File già presente, sessione ripristinata." if file_exists else "File caricato e indicizzato."
-
         return {
-            "message": message,
-            "file_already_exists": False,
-            "file_name": file.filename,
-            "standard_info": answer
+            "message": "Nuova analisi avviata. Contesto aggiornato.",
+            "file_names": ", ".join(filenames),
+            "standard_info": answer,
+            "file_already_exists": False 
         }
 
     def ask_question(self, user_id: str, question: str) -> str:
@@ -126,5 +128,10 @@ class RagService:
             raise HTTPException(status_code=400, detail="Nessun PDF caricato.")
         
         chat: PdfChat = session["chat"]
-        answer = chat.ask(question)
+        try:
+            answer = chat.ask(question)
+        except Exception as e:
+            print(f"[{user_id}] Errore imprevisto LLM: {e}")
+            raise HTTPException(status_code=500, detail=f"Errore nella generazione della risposta: {str(e.message)}")
+        
         return answer + DISCLAIMER

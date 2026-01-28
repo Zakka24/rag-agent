@@ -4,7 +4,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from pathlib import Path
 from uuid import uuid4
-import os
+import shutil
+import gc
+import time
 
 from src.model import Model
 from src.smart_pdf_loader import SmartPDFLoader
@@ -15,7 +17,7 @@ class Ingestor:
         Class to handle the ingestion of pdf documents into vector store.
     """
 
-    def __init__(self, file_name: str, model: Model, chunk_size=1000, chunk_overlap: int = 150, user_id: str | None=None):
+    def __init__(self, model: Model, chunk_size=1000, chunk_overlap: int = 150, user_id: str | None=None):
         """
         Initialize the Ingestor class and immediately instantiate vector store.
 
@@ -32,123 +34,95 @@ class Ingestor:
         self.user_id = user_id
 
         base_folder = Path(__file__).parent.parent
-        base_data_folder = base_folder / 'data' / 'gemini'
-        base_db_folder = base_folder / 'db' / 'gemini'
-
-        file_stem = Path(file_name).stem
-
-        # Cartelle separate per utente
-        if user_id is not None:
-            self.data_folder = base_data_folder / user_id
-            self.persist_directory = base_db_folder / user_id / file_stem / 'chroma_langchain_db'
-        else:
-            self.data_folder = base_data_folder
-            self.persist_directory = base_db_folder / file_stem / 'chroma_langchain_db'
-
-        self.file_path = self.data_folder / file_name
-
-        # Creazione cartelle se non esistono
-        self.data_folder.mkdir(parents=True, exist_ok=True)
-        self.persist_directory.parent.mkdir(parents=True, exist_ok=True)
-
-        self._instantiate_vector_store()
+        self.base_data_folder = base_folder / 'data' / 'gemini'
+        self.persist_directory = base_folder / 'db' / 'gemini' / user_id / str(uuid4()) / 'chroma_db'
 
     def _instantiate_vector_store(self):
         """
         Instantiate and initialize the vector store using Chroma with the model's embedding.
         This method is called during the initialization of the Ingestor class.
         """
-        # if self.persist_directory.exists():
-        #     shutil.rmtree(self.persist_directory)
-
+        self.persist_directory.parent.mkdir(parents=True, exist_ok=True)
         self.vector_store = Chroma(collection_name="documents",
                                    embedding_function=self.model.embeddings_model,
                                    persist_directory=str(self.persist_directory.absolute()))
 
-    def ingest_file(self):
+    def ingest_files(self, file_paths: list[Path]):        
         """
-        Ingest PDF file into the vector store by performing the following steps:
-        - Check that the file is a PDF.
-        - Load the PDF file.
-        - Split the content of the PDF into chunks.
-        - Add the chunks to the vector store.
+            Ingest PDF file into the vector store by performing the following steps:
+            - Check that the file is a PDF.
+            - Load the PDF file.
+            - Split the content of the PDF into chunks.
+            - Add the chunks to the vector store.
 
-        Raises:
-            ValueError: If the file is not a PDF.
+            Raises:
+                ValueError: If the file is not a PDF.
         """
-        if self.file_path.suffix != '.pdf':
-            raise ValueError('The file must be a pdf.')
+        self._instantiate_vector_store()
+        all_splits = []
 
-        print(f"Caricamento documento: {self.file_path.name}")
-        loader = SmartPDFLoader(str(self.file_path))
-        loaded_documents = loader.load()        
+        for file_path in file_paths:
+            if file_path.suffix.lower() != '.pdf':
+                print(f"Saltato file non PDF: {file_path.name}")
+                continue
 
-        if not loaded_documents:
-            raise RuntimeError("OCR fallito: nessun testo estratto dal PDF.")
+            print(f"[{self.user_id}] Elaborazione file: {file_path.name}")
 
-        text_documents = []
-        table_documents = []
+            try:
+                loader = SmartPDFLoader(str(file_path))
+                raw_docs = loader.load()
+            except Exception as e:
+                print(f"Errore caricamento {file_path.name}: {e}")
+                continue
 
-        for doc in loaded_documents:
-            page = doc.metadata['page']
-            doc.metadata.setdefault("source", self.file_path.name)
-            
-            if doc.metadata.get("type") == "text":
-                if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
-                    doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
-                text_documents.append(doc)
-            
-            elif doc.metadata.get("type") == "table":
-                table_documents.append(doc)
-            
-            else:
-                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
-                text_documents.append(doc)
+            if not raw_docs:
+                print(f"Attenzione: Nessun testo estratto da {file_path.name}")
+                continue
 
-        text_splitter = RecursiveCharacterTextSplitter( 
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-            separators=["\n\n", "\n", ". ", " ", ""],
-            strip_whitespace=True
-        )
-        split_text_docs = text_splitter.split_documents(text_documents)
-        documents = split_text_docs + table_documents
+            text_documents = []
+            table_documents = []
 
-        if not documents:
-            raise RuntimeError("Nessun chunk valido generato (testo vuoto).")
+            for doc in raw_docs:
+                page = doc.metadata['page']
+                doc.metadata.setdefault("source", file_path.name)
 
-        for doc in documents:
-            page = doc.metadata.get("page")
-            doc.metadata.setdefault("source", self.file_path.name)
-            doc.metadata.setdefault("ocr", False)
-            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
-                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
+                if doc.metadata.get("type") == "table":
+                    page = doc.metadata.get('page', 'N/A')
+                    header = f"[FILE: {file_path.name} | PAGINA {page} | TABELLA]"
+                    if not doc.page_content.startswith("[FILE:"):
+                        doc.page_content = f"{header}\n{doc.page_content}"
+                    table_documents.append(doc)
+                else:
+                    text_documents.append(doc)
 
-        self.documents = loaded_documents
+            text_splitter = RecursiveCharacterTextSplitter( 
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+                separators=["\n\n", "\n", ". ", " ", ""],
+                strip_whitespace=True
+            )
+            split_text_chunks = text_splitter.split_documents(text_documents)
+            for chunk in split_text_chunks:
+                page = chunk.metadata.get("page", "N/A")
+                header = f"[FILE: {file_path.name} | PAGINA {page}]"
+                chunk.page_content = f"{header}\n{chunk.page_content}"
 
-        # debug_file_name = f"{self.file_path.stem}_debug_chunks.txt"
-        # debug_path = self.data_folder / debug_file_name
+
+            final_chunks = split_text_chunks + table_documents
+
+            all_splits.extend(final_chunks)
+
+        if not all_splits:
+            raise RuntimeError("Nessun chunk valido generato dai file forniti.")
         
-        # print(f"Generazione file di debug chunk: {debug_path}")
-        # try:
-        #     with open(debug_path, "w", encoding="utf-8") as f:
-        #         f.write(f"REPORT DEBUG CHUNKS per: {self.file_path.name}\n")
-        #         f.write(f"Totale chunk generati: {len(documents)}\n")
-        #         f.write("="*60 + "\n\n")
-                
-        #         for i, doc in enumerate(documents):
-        #             f.write(f"--- CHUNK {i+1} ---\n")
-        #             f.write(f"METADATI: {doc.metadata}\n")
-        #             f.write(f"LUNGHEZZA: {len(doc.page_content)} caratteri\n")
-        #             f.write("-" * 20 + " INIZIO CONTENUTO " + "-" * 20 + "\n")
-        #             f.write(doc.page_content)
-        #             f.write("\n" + "-" * 20 + " FINE CONTENUTO " + "-" * 20 + "\n")
-        #             f.write("\n\n")
-                    
-        #     print(f"--> File di debug salvato correttamente.")
-        # except Exception as e:
-        #     print(f"Attenzione: Impossibile salvare file di debug: {e}")
+        print(f"[{self.user_id}] Inserimento di {len(all_splits)} chunks nel Vector DB...")
 
-        uuids = [str(uuid4()) for _ in range(len(documents))]
+        self.documents = all_splits
 
-        self.vector_store.add_documents(documents=documents, ids=uuids)
+        batch_size = 500
+        for i in range(0, len(all_splits), batch_size):
+            batch = all_splits[i:i + batch_size]
+            uuids = [str(uuid4()) for _ in range(len(batch))]
+            self.vector_store.add_documents(documents=batch, ids=uuids)
+            
+        print(f"[{self.user_id}] Ingestione completata.")
