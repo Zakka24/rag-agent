@@ -12,7 +12,7 @@ class Model:
         embeddings_model: str,
         chat_model: str,
         api_key: str,
-        base_url: str,
+        base_url: str = "http://localhost:11434",
     ):
         """
         Args:
@@ -35,5 +35,6 @@ class Model:
 
         self.chat_model = ChatGoogleGenerativeAI(
             model=self.model_name,
-            google_api_key=self.api_key
+            google_api_key=self.api_key,
+            max_retries= 0
         )
