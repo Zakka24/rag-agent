@@ -15,7 +15,7 @@ STANDARD_PROMPT = (
 
     'OBIETTIVO'
     'Leggere l’intero documento ed estrarre SEMPRE le informazioni richieste, indicando SEMPRE per ciascuna:'
-    '- la pagina. Se le informazioni sono sparse in più pagine, indica tutte le pagine.\n'
+    '- la pagina e il nome del file. Se le informazioni sono sparse in più pagine, indica tutte le pagine.\n'
     '- l\'infomazione ricava'
     '- una brevissima citazione testuale\n'
     '- se un dato che analizzi tra quelli richiesto ti sembra abbia un formato strano, indicalo comunque aggiungendo il flag [POSSIBILE SCRITTA A MANO]\n'
