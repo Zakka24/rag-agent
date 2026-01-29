@@ -34,5 +34,5 @@ class Model:
         self.chat_model = ChatOllama(
             model=self.model_name,
             base_url=self.base_url,
-            num_ctx=65_536
+            num_ctx=16_384
         )
