@@ -15,7 +15,7 @@ class Ingestor:
         Class to handle the ingestion of pdf documents into vector store.
     """
 
-    def __init__(self, file_name: str, model: Model, chunk_size=800, chunk_overlap: int = 150, user_id: str | None=None):
+    def __init__(self, model: Model, chunk_size=1000, chunk_overlap: int = 150, user_id: str | None=None):
         """
         Initialize the Ingestor class and immediately instantiate vector store.
 
@@ -32,40 +32,20 @@ class Ingestor:
         self.user_id = user_id
 
         base_folder = Path(__file__).parent.parent
-        base_data_folder = base_folder / 'data'
-        base_db_folder = base_folder / 'db'
-
-        file_stem = Path(file_name).stem
-
-        # Cartelle separate per utente
-        if user_id is not None:
-            self.data_folder = base_data_folder / user_id
-            self.persist_directory = base_db_folder / user_id / file_stem / 'chroma_langchain_db'
-        else:
-            self.data_folder = base_data_folder
-            self.persist_directory = base_db_folder / file_stem / 'chroma_langchain_db'
-
-        self.file_path = self.data_folder / file_name
-
-        # Creazione cartelle se non esistono
-        self.data_folder.mkdir(parents=True, exist_ok=True)
-        self.persist_directory.parent.mkdir(parents=True, exist_ok=True)
-
-        self._instantiate_vector_store()
+        self.base_data_folder = base_folder / 'data' / 'local'
+        self.persist_directory = base_folder / 'db' / 'local' / user_id / str(uuid4()) / 'chroma_db'
 
     def _instantiate_vector_store(self):
         """
         Instantiate and initialize the vector store using Chroma with the model's embedding.
         This method is called during the initialization of the Ingestor class.
         """
-        # if self.persist_directory.exists():
-        #     shutil.rmtree(self.persist_directory)
-
+        self.persist_directory.parent.mkdir(parents=True, exist_ok=True)
         self.vector_store = Chroma(collection_name="documents",
                                    embedding_function=self.model.embeddings_model,
                                    persist_directory=str(self.persist_directory.absolute()))
 
-    def ingest_file(self):
+    def ingest_files(self, file_paths: list[Path]):
         """
         Ingest PDF file into the vector store by performing the following steps:
         - Check that the file is a PDF.
@@ -76,43 +56,60 @@ class Ingestor:
         Raises:
             ValueError: If the file is not a PDF.
         """
-        if self.file_path.suffix != '.pdf':
-            raise ValueError('The file must be a pdf.')
+        self._instantiate_vector_store()
+        all_splits = []
 
-        print(f"Caricamento documento: {self.file_path.name}")
-        loader = SmartPDFLoader(str(self.file_path))
-        loaded_documents = loader.load()        
+        for file_path in file_paths:
+            if file_path.suffix.lower() != '.pdf':
+                print(f"Saltato file non PDF: {file_path.name}")
+                continue
 
-        if not loaded_documents:
-            raise RuntimeError("OCR fallito: nessun testo estratto dal PDF.")
+            print(f"[{self.user_id}] Elaborazione file: {file_path.name}")
 
-        for doc in loaded_documents:
-            page = doc.metadata.get("page")
-            doc.metadata.setdefault("source", self.file_path.name)
-            doc.metadata.setdefault("ocr", False)
-            if not doc.page_content.strip().startswith(f"[PAGINA {page}]"):
-                doc.page_content = f"[PAGINA {page}]\n{doc.page_content}"
+            try:
+                loader = SmartPDFLoader(str(file_path))
+                raw_docs = loader.load()
+            except Exception as e:
+                print(f"Errore caricamento {file_path.name}: {e}")
+                continue
+
+            if not raw_docs:
+                print(f"Attenzione: Nessun testo estratto da {file_path.name}")
+                continue
+
+            documents = []
+
+            for doc in raw_docs:
+                page = doc.metadata['page']
+                doc.metadata.setdefault("source", file_path.name)
+
+                documents.append(doc)
+
+            text_splitter = RecursiveCharacterTextSplitter( 
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+                separators=["\n\n", "\n", ". ", " ", ""],
+                strip_whitespace=True
+            )
+            chunks = text_splitter.split_documents(documents)
+            for chunk in chunks:
+                page = chunk.metadata.get("page", "N/A")
+                header = f"[FILE: {file_path.name} | PAGINA {page}]"
+                chunk.page_content = f"{header}\n{chunk.page_content}"
+
+            all_splits.extend(chunks)
+
+        if not all_splits:
+            raise RuntimeError("Nessun chunk valido generato dai file forniti.")
         
-        separators = [
-            "\n\n",
-            "--- TABELLE",
-            "\n",
-            ". ",
-            " ",
-            ""
-        ] 
+        print(f"[{self.user_id}] Inserimento di {len(all_splits)} chunks nel Vector DB...")
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size,chunk_overlap=self.chunk_overlap, separators=separators, keep_separator=True)
-        documents = text_splitter.split_documents(loaded_documents)
-        documents = [d for d in documents if d.page_content and d.page_content.strip()]
+        self.documents = all_splits
 
-        if not documents:
-            raise RuntimeError("Nessun chunk valido generato (testo vuoto).")
-
-        self.documents = loaded_documents
-
-        # Generate unique IDs for the documents
-        uuids = [str(uuid4()) for _ in range(len(documents))]
-
-        # Add documents to the vector store
-        self.vector_store.add_documents(documents=documents, ids=uuids)
+        batch_size = 500
+        for i in range(0, len(all_splits), batch_size):
+            batch = all_splits[i:i + batch_size]
+            uuids = [str(uuid4()) for _ in range(len(batch))]
+            self.vector_store.add_documents(documents=batch, ids=uuids)
+            
+        print(f"[{self.user_id}] Ingestione completata.")

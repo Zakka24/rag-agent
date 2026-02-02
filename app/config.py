@@ -4,6 +4,8 @@ import os
 BASE_DIR = Path(__file__).parent.parent 
 DATA_FOLDER = BASE_DIR / "data"
 
+MAX_GROUP_CHARS = 30_000
+
 DISCLAIMER = "\n\n\n**Le informazioni sono state estratte dal testo fornito e potrebbero essere incomplete.**"
 
 API_KEY = os.getenv("API_KEY")
@@ -83,4 +85,21 @@ STANDARD_PROMPT = (
     '- Tabelle separate per ciascuna sezione\n'
     '- Nessuna informazione diversa da quelle esplicitamente richieste\n'
     '- Mi raccomando alle tabelle di ogni sezioni aggiungi sempre una piccola citazione e la pagina da dove stai ricavando l\'informazione\n'
+)
+
+MAP_PROMPT_TEXT = (
+    "Sei un analista legale. Analizza il seguente segmento di testo estratto da un contratto.\n"
+    "Il tuo compito è ESTRARRE GREZZAMENTE qualsiasi informazione relativa ai seguenti punti:\n"
+    "- Dati del contratto (Numero di Trascrizione/Repertorio, Raccolta, date)\n"
+    "- Durate, scadenze, rinnovi (tipo di rapporto, durata, dies a quo, condizioni o estensioni)\n"
+    "- Oggetto del contratto (locazione, diritti di superficie, diritti di servitù, esproprio, occupazione temporanea, compravendita)\n"
+    "- Anagrafiche parti (nomi, ragione sociale, data e luogo di nascita, codice fiscale, iban, numero di telefono, indirizzi)\n"
+    "- Dati catastali terreni/immobili per ogni coppia foglio particella (comune, estensione, categoria e classe catastale, R.D. e R.A., tipo di proprietà, quota di proprietà)\n"
+    "- Corrispettivi e pagamenti (oggetto del pagamento, corrispettivo, tassa di registra %, beneficiario, eventuali termini di ritardo)\n\n"
+    
+    "ISTRUZIONI:\n"
+    "- Se trovi un dato, trascrivilo citando la pagina e il file esatto.\n"
+    "- Se il testo non contiene dati rilevanti, scrivi solo 'Nessun dato rilevante'.\n"
+    "- Non preoccuparti della formattazione, cattura solo i dati.\n\n"
+    "TESTO:\n{context}"
 )

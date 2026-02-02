@@ -28,5 +28,5 @@ class Model:
             openai_api_base=self.base_url,
             openai_api_key="EMPTY",
             temperature=self.temperature,
-            max_tokens=65_536
+            max_tokens=8_192
         )
