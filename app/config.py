@@ -4,7 +4,7 @@ import os
 BASE_DIR = Path(__file__).parent.parent 
 DATA_FOLDER = BASE_DIR / "data"
 
-MAX_GROUP_CHARS = 30_000
+MAX_GROUP_CHARS = 24_000
 
 DISCLAIMER = "\n\n\n**Le informazioni sono state estratte dal testo fornito e potrebbero essere incomplete.**"
 
