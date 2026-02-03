@@ -13,6 +13,7 @@ from src.model import Model
 from app.config import DATA_FOLDER, STANDARD_PROMPT, DISCLAIMER, MAP_PROMPT_TEXT, MAX_GROUP_CHARS
 
 from typing import List
+import re
 
 class RagService:
     def __init__(self, model: Model, sessions: dict):
@@ -73,14 +74,31 @@ class RagService:
             print(f"[{user_id}] Analisi gruppo {i+1}/{len(grouped_docs)}...")
             try:
                 res = map_chain.invoke({"context": group_text})
-                intermediate_results.append(res)
+                full_text = res
+                separator = "</think>"
+                split_index = full_text.rfind(separator)
+                
+                if split_index != -1: 
+                    raw_thinking = full_text[:split_index]
+                    thinking_content = raw_thinking.replace("<think>", "").strip()
+                    content = full_text[split_index + len(separator):].strip()
+                    print('think found')
+                else:
+                    thinking_content = ""
+                    content = full_text.strip()
+                    print('no think found')
+
+                intermediate_results.append(content)
+
             except Exception as e:
                 print(f"Errore nel batch {i}: {e}")
                 continue
 
         print(f"[{user_id}] Sintesi finale dei dati estratti...")
         
-        full_extracted_context = "\n\n=== ESTRAZIONE PARZIALE ===\n".join(intermediate_results)
+        full_extracted_context = "\n\n".join(intermediate_results)
+
+        print(full_extracted_context)
 
         final_prompt = ChatPromptTemplate.from_messages([
             ("system", STANDARD_PROMPT),
@@ -94,8 +112,22 @@ class RagService:
 
         final_chain = final_prompt | self.model.chat_model | StrOutputParser()
         risposta_finale = final_chain.invoke({"context": full_extracted_context})
+        full_text = risposta_finale
 
-        return risposta_finale + DISCLAIMER
+        separator = "</think>"
+        split_index = full_text.rfind(separator)
+        
+        if split_index != -1:
+            raw_thinking = full_text[:split_index]
+            thinking_content = raw_thinking.replace("<think>", "").strip()
+            content = full_text[split_index + len(separator):].strip()
+        else:
+            thinking_content = ""
+            content = full_text.strip()        
+        return {
+            "answer": content,
+            "reasoning": thinking_content
+        }
 
     def process_upload(self, user_id: str, files: List[UploadFile]):
         user_data_folder = DATA_FOLDER / user_id
@@ -153,5 +185,10 @@ class RagService:
             raise HTTPException(status_code=400, detail="Nessun PDF caricato.")
         
         chat: PdfChat = session["chat"]
-        answer = chat.ask(question)
-        return answer + DISCLAIMER
+        response = chat.ask(question)
+
+        # print(response)
+        
+        response["answer"] = response["answer"] + DISCLAIMER
+        
+        return response

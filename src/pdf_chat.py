@@ -4,6 +4,7 @@ from langchain_classic.chains import create_retrieval_chain
 from src.ingestion import Ingestor
 from src.model import Model
 from typing import List, Tuple, Optional
+import re
 
 
 class PdfChat:
@@ -95,13 +96,25 @@ class PdfChat:
             combine_docs_chain
         )
 
-    def ask(self, query: str) -> str:
+    def ask(self, query: str) -> dict:
         """
         Asks one single question to LLM and return the response.
         """
 
         result = self.retrieval_chain.invoke({"input": query})
+        full_text = result["answer"]
 
-        print(result)
+        separator = "</think>"
+        split_index = full_text.rfind(separator)
         
-        return result["answer"]
+        if split_index != -1:
+            raw_thinking = full_text[:split_index]
+            thinking_content = raw_thinking.replace("<think>", "").strip()
+            content = full_text[split_index + len(separator):].strip()
+        else:
+            thinking_content = ""
+            content = full_text.strip()        
+        return {
+            "answer": content,
+            "reasoning": thinking_content
+        }

@@ -41,5 +41,8 @@ async def chat_endpoint(
     x_user_id: str = Header(...),
     service: RagService = Depends(get_rag_service)
 ):
-    answer = service.ask_question(x_user_id, req.question)
-    return ChatResponse(answer=answer)
+    result = service.ask_question(x_user_id, req.question)
+    return ChatResponse(
+        answer=result["answer"],
+        reasoning=result["reasoning"]
+    )
