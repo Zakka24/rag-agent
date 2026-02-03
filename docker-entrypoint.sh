@@ -40,6 +40,6 @@ ls -la "${CUDA_DIR}" | grep -E 'libcuda\.so(\.1)?' || true
 
 exec vllm serve Qwen/Qwen3-4B-Thinking-2507 \
   --gpu-memory-utilization 0.90 \
-  --max-model-len 38592 \
+  --max-model-len 32768 \
   --dtype auto \
   --api-key token-finto
