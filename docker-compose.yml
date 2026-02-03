@@ -1,3 +1,4 @@
+name: vllm-local-rag
 services:
   vllm:
     build:
