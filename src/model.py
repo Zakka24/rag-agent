@@ -26,7 +26,7 @@ class Model:
         self.chat_model = ChatOpenAI(
             model=self.model_name,
             openai_api_base=self.base_url,
-            openai_api_key="EMPTY",
+            openai_api_key="token-finto",
             temperature=self.temperature,
-            max_tokens=8_192
+            max_tokens=16_384
         )
