@@ -1,54 +1,75 @@
-# RAG PDF Chatbot with Ollama
+# RAG Qwen PDF Chat Agent
 
-This repository provides a solution for uploading private documents (PDFs) and interacting with them using a Retrieval-Augmented Generation (RAG) pipeline. 
-With this project, you can ask questions about your uploaded documents and summarize content.
+An advanced **Retrieval-Augmented Generation (RAG)** system specifically optimized for analyzing Italian legal and notarized documents (contracts, deeds, leases). This project leverages **FastAPI** for the backend, **vLLM** for high-performance model inference, and **ChromaDB** as the vector store.
 
-It leverages **Chroma** for vector storage, **Ollama's embedding**, and **Ollama's LLaMA** model for chat and question-answering.
+## Key Features
 
----
+* **Legal-Specific Extraction**: Tailored system prompts designed to extract specific legal data like contract terms, parties involved, cadastral data, and payment details.
+* **Smart PDF Processing**: Integrated OCR using `Tesseract` and `pdf2image` to process both native and scanned PDFs.
+* **Sequential Map-Reduce Analysis**: Handles long documents by splitting text into manageable groups (max 24,000 characters) to ensure no critical information is lost during analysis.
+* **Thinking Model Integration**: Utilizes "Thinking" LLMs (Qwen3-4B-Thinking) to provide detailed reasoning alongside answers.
+* **Multi-User Support**: Dedicated session management and storage paths for different user IDs.
 
-## Features
+## Tech Stack
 
-- **Upload Private Documents**: Securely upload and process your own PDFs.
-- **Question Answering**: Ask questions about the content in your documents.
-- **Summarization**: Generate summaries for your uploaded documents.
-- **Vector Storage with Chroma**: Document ingestion and storage.
-- **LLaMA-Powered Chat**: Leverages Ollama's LLaMA models.
+* **LLM Inference**: [vLLM](https://github.com/vllm-project/vllm).
+* **Models**: 
+    * **Chat**: `Qwen/Qwen3-4B-Thinking-2507`.
+    * **Embeddings**: `Qwen/Qwen3-Embedding-0.6B`.
+* **Framework**: LangChain (Core, Classic, Community).
+* **Vector Database**: ChromaDB.
+* **API Framework**: FastAPI.
+* **OCR**: Tesseract OCR (with Italian language support).
 
----
+## Setup & Installation
 
-## How It Works
+### Prerequisites
+* Docker and Docker Compose
+* NVIDIA GPU (Recommended for vLLM performance)
+* Hugging Face API Token
 
-1. **Document Ingestion**:  
-   Uploaded PDFs are processed, and text is extracted.
-   
-2. **Embedding**:  
-   Text data is embedded into vector representations using a pre-trained model.
+### Configuration
+1.  Create a `.env` file in the root directory:
+    ```env
+    HUGGINGFACEHUB_API_TOKEN=your_hf_token_here
+    API_KEY=your_secret_api_key
+    ```
 
-3. **Vector Store with Chroma**:  
-   The embeddings are stored in Chroma, enabling efficient retrieval.
+2.  Launch the services:
+    ```bash
+    docker-compose up -p --build
+    ```
+    * **FastAPI Backend**: `http://localhost:8000`
+    * **vLLM Server**: `http://localhost:8001`
 
-4. **Chat and Summarization**:  
-   Using Ollama's LLaMA, the system responds to queries or generates summaries based on the document content.
+## API Endpoints
 
----
+All requests require the `X-API-Key` header for authentication.
 
-## Usage
+### 1. Upload PDF
+* **Endpoint**: `POST /upload_pdf`
+* **Header**: `X-User-Id: <unique_user_id>`
+* **Payload**: `multipart/form-data` with a `files` field.
+* **Description**: Uploads the PDF, indexes it in the vector store, and returns an automated standard legal analysis.
 
-### Ensure to choose a model that suits your hardware capacity, I suggest:
+### 2. Chat
+* **Endpoint**: `POST /chat`
+* **Header**: `X-User-Id: <unique_user_id>`
+* **Payload**: 
+    ```json
+    { "question": "What is the duration of the lease?" }
+    ```
+* **Response**: Returns the `answer` and the model's `reasoning` process.
 
-- Chat model **llama3.1:8b** 
-- Embedding model **nomic-embed-text** 
+## Project Structure
 
-### Getting started
+* `app/`: FastAPI application logic, routers, and schemas.
+* `src/`: Core RAG engine logic.
+    * `ingestion.py`: Document splitting and vector embedding.
+    * `smart_pdf_loader.py`: PDF text extraction and OCR fallback.
+    * `pdf_chat.py`: Retrieval chain and chat logic.
+* `Dockerfile`: Environment setup including Tesseract and system dependencies.
+* `docker-compose.yml`: Multi-container orchestration.
 
-1. **Upload a PDF file.**
-2. **Run main.py after setting custom parameters**
-3. **Ask questions or request a summary of the content.**
-
-  #### For example:
-
-    "What is the main idea of this document?"
-    
-    "Summarize the document."
-
+## ⚖️ Disclaimer
+This tool is intended for assistive purposes in legal document analysis. Always verify the extracted information with a qualified legal professional.
