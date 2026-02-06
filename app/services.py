@@ -1,7 +1,7 @@
 # app/services.py
 import shutil
 from pathlib import Path
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile, HTTPException, BackgroundTasks
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -22,6 +22,33 @@ class RagService:
 
     def get_session(self, user_id: str):
         return self.sessions.get(user_id)
+    
+    def get_analysis_status(self, user_id: str):
+        session = self.sessions.get(user_id)
+        if not session:
+            return {"status": "not_found"}
+        
+        return {
+            "status": session.get("status", "processing"),
+            "data": session.get("standard_info"),
+            "error": session.get("error_message")
+        }
+    
+    def run_async_analysis(self, user_id: str):
+        try:
+            print(f"[{user_id}] Avvio analisi asincrona...")
+            answer = self.extract_info_standard(user_id)
+            
+            if user_id in self.sessions:
+                self.sessions[user_id]["standard_info"] = answer
+                self.sessions[user_id]["status"] = "completed"
+                print(f"[{user_id}] Analisi completata con successo.")
+                
+        except Exception as e:
+            print(f"[{user_id}] Errore background: {e}")
+            if user_id in self.sessions:
+                self.sessions[user_id]["status"] = "error"
+                self.sessions[user_id]["error_message"] = str(e)
 
     def extract_info_standard(self, user_id: str) -> str:
         session = self.get_session(user_id)
@@ -129,7 +156,7 @@ class RagService:
             "reasoning": thinking_content
         }
 
-    def process_upload(self, user_id: str, files: List[UploadFile]):
+    def process_upload(self, user_id: str, files: List[UploadFile], background_tasks : BackgroundTasks):
         user_data_folder = DATA_FOLDER / user_id
         user_data_folder.mkdir(parents=True, exist_ok=True)
 
@@ -166,17 +193,18 @@ class RagService:
             "file_names": filenames,
             "ingestor": ingestor,
             "chat": chat,
-            "standard_info": None
+            "standard_info": None,
+            "status": "processing"
         }
 
-        answer = self.extract_info_standard(user_id)
-        self.sessions[user_id]["standard_info"] = answer
+        background_tasks.add_task(self.run_async_analysis, user_id)
 
         return {
-            "message": "Nuova analisi avviata. Contesto aggiornato.",
+            "message": "Upload ricevuto. Analisi avviata in background.",
             "file_names": ", ".join(filenames),
-            "standard_info": answer,
-            "file_already_exists": False 
+            "standard_info": None, # Non c'è ancora
+            "file_already_exists": False,
+            "status": "processing" # <--- Segnala al frontend di aspettare
         }
 
     def ask_question(self, user_id: str, question: str) -> str:

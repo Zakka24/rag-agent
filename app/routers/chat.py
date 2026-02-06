@@ -1,5 +1,5 @@
 # app/routers/chat.py
-from fastapi import APIRouter, UploadFile, Request, HTTPException, File, Header, Depends
+from fastapi import APIRouter, UploadFile, Request, HTTPException, BackgroundTasks, File, Header, Depends
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app.schemas import ChatRequest, ChatResponse, UploadResponse
@@ -20,6 +20,7 @@ def get_rag_service(
 @router.post("/upload_pdf", response_model=UploadResponse)
 async def upload_pdf(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_user_id: str = Header(...),
     service: RagService = Depends(get_rag_service)
 ):
@@ -33,7 +34,7 @@ async def upload_pdf(
         if not uploaded:
             raise HTTPException(status_code=422, detail=[{"loc": ["body", "files"], "msg": "Field required ttt", "type": "missing"}])
             
-    return service.process_upload(x_user_id, uploaded)
+    return service.process_upload(x_user_id, uploaded, background_tasks)
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
@@ -46,3 +47,10 @@ async def chat_endpoint(
         answer=result["answer"],
         reasoning=result["reasoning"]
     )
+
+@router.get("/status")
+async def check_status(
+    x_user_id: str = Header(...),
+    service: RagService = Depends(get_rag_service)
+):
+    return service.get_analysis_status(x_user_id)
