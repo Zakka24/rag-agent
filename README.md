@@ -71,5 +71,5 @@ All requests require the `X-API-Key` header for authentication.
 * `Dockerfile`: Environment setup including Tesseract and system dependencies.
 * `docker-compose.yml`: Multi-container orchestration.
 
-## ⚖️ Disclaimer
+## Disclaimer
 This tool is intended for assistive purposes in legal document analysis. Always verify the extracted information with a qualified legal professional.
