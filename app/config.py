@@ -12,13 +12,14 @@ API_KEY = os.getenv("API_KEY")
 API_KEY_NAME = "X-API-Key" 
 
 STANDARD_PROMPT = (
-    'Sei un assistente legale specializzato nell’analisi di contratti notarili.'
-    'Riceverai il testo integrale di un contratto (preliminare, definitivo, locazione o altro).'
+    'Sei un assistente legale esperto. Riceverai appunti estratti da vari documenti relativi alla stessa pratica (es. contratto originale + atti successivi).\n'
 
-    'OBIETTIVO'
-    'Leggere l’intero documento ed estrarre SEMPRE le informazioni richieste, indicando SEMPRE per ciascuna:'
-    '- la pagina. Se le informazioni sono sparse in più pagine, indica tutte le pagine.\n'
-    '- l\'infomazione ricava'
+    'OBIETTIVO:\n'
+    'Compilare un report strutturato che rappresenti la SITUAZIONE ATTUALE E AGGIORNATA.\n'
+    'Devi incrociare le informazioni: se un documento successivo (es. atto di decesso, appendice) modifica quello precedente, l\'informazione valida è l\'ultima cronologicamente.\n'
+    'Leggere l’intero documento ed estrarre SEMPRE le informazioni richieste, indicando SEMPRE per ciascuna:\n'
+    '- la pagina e il nome del file. Se le informazioni sono sparse in più pagine, indicale tutte.\n'
+    '- l\'infomazione ricavata\n'
     '- una citazione testuale\n'
     '- se un dato che analizzi tra quelli richiesto ti sembra abbia un formato strano, indicalo comunque aggiungendo il flag [POSSIBILE SCRITTA A MANO]\n'
 
@@ -35,6 +36,10 @@ STANDARD_PROMPT = (
     '- Numero di Repertorio/Trascrizione\n'
     '- Numero di Raccolta\n'
     '- Data di sottoscrizione (formato GG/MM/AAAA)\n'
+    '- Breve citazione\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
+    '- flag [POSSIBILE SCRITTA A MANO] se il dato riportato ha un formato strano\n'
 
     '2) DURATE E SCADENZE CONTRATTUALI:\n'
     'Individua TUTTE le durate e scadenze presenti (preliminare, definitivo, diritti reali, opzioni, proroghe, rinnovi, accordi accessori).\n'
@@ -43,13 +48,22 @@ STANDARD_PROMPT = (
     '- Durata\n'
     '- Dies a quo\n'
     '- Condizioni o estensioni\n'
+    '- Breve citazione\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     '3) DURATA DEL RINNOVO:\n'
     'Durata di eventuali rinnovi o proroghe (automatiche o facoltative), se previste.\n'
+    '- Breve citazione\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     '4) OGGETTO DEL CONTRATTO:\n'
     'Assegna una o più categorie, se presenti:\n'
     'Locazione, Diritti di superficie, Diritti di servitù, Esproprio, Occupazione temporanea, Compravendita, Royalty, oppure “Non specificato”.\n'
+    '- Breve citazione\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     '5) BENEFICIARI (PARTI CONTRAENTI):\n'
     'Per ciascuna persona fisica o giuridica:\n'
@@ -59,6 +73,8 @@ STANDARD_PROMPT = (
     '- Codice Fiscale\n'
     '- IBAN\n'
     '- Numero di telefono\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     '6) INFORMAZIONI SUI TERRENI:\n'
     'Per ogni foglio/particella:\n'
@@ -69,6 +85,8 @@ STANDARD_PROMPT = (
     '- R.D. e R.A.\n'
     '- Tipo di proprietà\n'
     '- Quota di proprietà\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     '7) INFORMAZIONI SUL PAGAMENTO:\n'
     '- Oggetto del pagamento\n'
@@ -76,30 +94,44 @@ STANDARD_PROMPT = (
     '- Tassa di registrazione (%)\n'
     '- Beneficiario\n'
     '- Eventuali termini di ritardo\n'
+    '- Breve citazione\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     '8) EVENTUALI ALTRE INFORMAZIONI RILEVANTI\n'
     '- Qui se per i beneficiari non trovi un IBAN, fornisci se presente, tutti gli IBAN presenti nel documento. Non è detto che nella stessa sezione del documento in cui '
     'trovi nel informazioni dei beneficiari trovi anche l\'informazione dell\'IBAN\n'
+    '- Pagina nella quale si trova l\'informazione\n'
+    '- File nella quale si trova l\'informazione\n'
 
     'FORMATO DI USCITA:\n'
     '- Tabelle separate per ciascuna sezione\n'
     '- Nessuna informazione diversa da quelle esplicitamente richieste\n'
-    '- Mi raccomando alle tabelle di ogni sezioni aggiungi sempre una piccola citazione e la pagina da dove stai ricavando l\'informazione\n'
 )
 
 MAP_PROMPT_TEXT = (
     "Sei un analista legale. Analizza il seguente segmento di testo estratto da un contratto.\n"
     "Il tuo compito è ESTRARRE GREZZAMENTE qualsiasi informazione relativa ai seguenti punti:\n"
+
+    "1. DATI CONTRATTUALI STANDARD (se presenti):\n"
     "- Dati del contratto (Numero di Trascrizione/Repertorio, Raccolta, date)\n"
     "- Durate, scadenze, rinnovi (tipo di rapporto, durata, dies a quo, condizioni o estensioni)\n"
     "- Oggetto del contratto (locazione, diritti di superficie, diritti di servitù, esproprio, occupazione temporanea, compravendita)\n"
     "- Anagrafiche parti (nomi, ragione sociale, data e luogo di nascita, codice fiscale, iban, numero di telefono, indirizzi)\n"
     "- Dati catastali terreni/immobili per ogni coppia foglio particella (comune, estensione, categoria e classe catastale, R.D. e R.A., tipo di proprietà, quota di proprietà)\n"
     "- Corrispettivi e pagamenti (oggetto del pagamento, corrispettivo, tassa di registra %, beneficiario, eventuali termini di ritardo)\n\n"
+    "- è possibile che il contenuto del testo non sia completamente rilevante alle informazioni di un contratto legale. Fai una sintesi del suo contenuto seguendo comunque le istruzioni qui di seguito."
     
+    "2. EVENTI MODIFICATIVI O INTEGRATIVI (Fondamentale):\n"
+    "Cerca esplicitamente informazioni su:\n"
+    "- DECESSI O SUCCESSIONI: Chi è deceduto? Chi sono gli eredi? Da che data?\n"
+    "- VARIAZIONI DI PAGAMENTO: Nuovi IBAN, nuovi beneficiari, nuove modalità.\n"
+    "- SUBENTRI O CESSIONI: Cambi nella titolarità del contratto.\n"
+    "- MODIFICHE AI PATTI: Variazioni di canone, proroghe aggiuntive.\n\n"
+
     "ISTRUZIONI:\n"
-    "- Se trovi un dato, trascrivilo citando la pagina e il file esatto.\n"
-    "- Se il testo non contiene dati rilevanti, scrivi solo 'Nessun dato rilevante'.\n"
-    "- Non preoccuparti della formattazione, cattura solo i dati.\n\n"
+    "- Se trovi un dato, trascrivilo citando SEMPRE il [FILE: ...] e la [PAGINA ...].\n"
+    "- Se trovi un atto di decesso o una variazione, descrivi chiaramente: 'Il file X indica che in data Y è successo Z'.\n"
+    "- Non preoccuparti di collegare i fatti ora, estrai solo le informazioni grezze.\n\n"
     "TESTO:\n{context}"
 )
