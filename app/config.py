@@ -16,19 +16,19 @@ STANDARD_PROMPT = (
 
     'OBIETTIVO:\n'
     'Compilare un report strutturato che rappresenti la SITUAZIONE ATTUALE E AGGIORNATA.\n'
-    'Devi incrociare le informazioni: se un documento successivo (es. atto di decesso, appendice) modifica quello precedente, l\'informazione valida è l\'ultima cronologicamente.\n'
-    'Leggere l’intero documento ed estrarre SEMPRE le informazioni richieste, indicando SEMPRE per ciascuna:\n'
-    '- la pagina e il nome del file. Se le informazioni sono sparse in più pagine, indicale tutte.\n'
-    '- l\'infomazione ricavata\n'
-    '- una citazione testuale\n'
-    '- se un dato che analizzi tra quelli richiesto ti sembra abbia un formato strano, indicalo comunque aggiungendo il flag [POSSIBILE SCRITTA A MANO]\n'
+    'Devi incrociare le informazioni: se un documento successivo (es. atto di decesso, appendice) modifica quello precedente, l\'informazione valida è l\'ultima cronologicamente dal punto di vista temporale.\n'
+    # 'Leggere l’intero documento ed estrarre SEMPRE le informazioni richieste, indicando SEMPRE per ciascuna:\n'
+    # '- la pagina e il nome del file. Se le informazioni sono sparse in più pagine, indicale tutte.\n'
+    # '- l\'infomazione ricavata\n'
+    # '- una citazione testuale\n'
+    # '- se un dato che analizzi tra quelli richiesto ti sembra abbia un formato strano, indicalo comunque aggiungendo il flag [POSSIBILE SCRITTA A MANO]\n'
 
-    'REGOLE GENERALI:\n'
-    '- Non inventare nulla.\n'
-    '- Usa formulazioni il più possibile fedeli al testo originale.\n'
-    '- Se un’informazione non è esplicitamente presente, rispondi “Non presente”.\n'
-    '- Se sono presenti più valori (durate, parti, terreni, pagamenti), elencali TUTTI.\n'
-    '- Restituisci SEMPRE l’output in formato tabellare, una tabella per sezione.\n'
+    # 'REGOLE GENERALI:\n'
+    # '- Non inventare nulla.\n'
+    # '- Usa formulazioni il più possibile fedeli al testo originale.\n'
+    # '- Se un’informazione non è esplicitamente presente, rispondi “Non presente”.\n'
+    # '- Se sono presenti più valori (durate, parti, terreni, pagamenti), elencali TUTTI.\n'
+    # '- Restituisci SEMPRE l’output in formato tabellare, una tabella per sezione.\n'
 
     'SEZIONI DA ESTRARRE:\n'
 
@@ -89,6 +89,9 @@ STANDARD_PROMPT = (
     '- File nella quale si trova l\'informazione\n'
 
     '7) INFORMAZIONI SUL PAGAMENTO:\n'
+    'Devi elencare TUTTI i movimenti economici presenti nelle note, distinguendoli chiaramente.\n'
+    'NON SOVRASCRIVERE il "Prezzo di Vendita" con le "Imposte" o "Tasse" anche se compaiono in pagine successive.\n'
+    'Crea righe separate per:\n'
     '- Oggetto del pagamento\n'
     '- Corrispettivo\n'
     '- Tassa di registrazione (%)\n'
@@ -104,9 +107,9 @@ STANDARD_PROMPT = (
     '- Pagina nella quale si trova l\'informazione\n'
     '- File nella quale si trova l\'informazione\n'
 
-    'FORMATO DI USCITA:\n'
-    '- Tabelle separate per ciascuna sezione\n'
-    '- Nessuna informazione diversa da quelle esplicitamente richieste\n'
+    # 'FORMATO DI USCITA:\n'
+    # '- Tabelle separate per ciascuna sezione\n'
+    # '- Nessuna informazione diversa da quelle esplicitamente richieste\n'
 )
 
 MAP_PROMPT_TEXT = (
@@ -119,8 +122,8 @@ MAP_PROMPT_TEXT = (
     "- Oggetto del contratto (locazione, diritti di superficie, diritti di servitù, esproprio, occupazione temporanea, compravendita)\n"
     "- Anagrafiche parti (nomi, ragione sociale, data e luogo di nascita, codice fiscale, iban, numero di telefono, indirizzi)\n"
     "- Dati catastali terreni/immobili per ogni coppia foglio particella (comune, estensione, categoria e classe catastale, R.D. e R.A., tipo di proprietà, quota di proprietà)\n"
-    "- Corrispettivi e pagamenti (oggetto del pagamento, corrispettivo, tassa di registra %, beneficiario, eventuali termini di ritardo)\n\n"
-    "- è possibile che il contenuto del testo non sia completamente rilevante alle informazioni di un contratto legale. Fai una sintesi del suo contenuto seguendo comunque le istruzioni qui di seguito."
+    "- Tutti i corrispettivi e pagamenti, anche eventuali pagamenti ricorrenti da fare per X anni (oggetto del pagamento, corrispettivo, tassa di registrazione beneficiario, eventuali termini di ritardo)\n\n"
+    # "- è possibile che il contenuto del testo non sia completamente rilevante alle informazioni di un contratto legale. Fai una sintesi del suo contenuto seguendo comunque le istruzioni qui di seguito."
     
     "2. EVENTI MODIFICATIVI O INTEGRATIVI (Fondamentale):\n"
     "Cerca esplicitamente informazioni su:\n"
@@ -132,6 +135,7 @@ MAP_PROMPT_TEXT = (
     "ISTRUZIONI:\n"
     "- Se trovi un dato, trascrivilo citando SEMPRE il [FILE: ...] e la [PAGINA ...].\n"
     "- Se trovi un atto di decesso o una variazione, descrivi chiaramente: 'Il file X indica che in data Y è successo Z'.\n"
-    "- Non preoccuparti di collegare i fatti ora, estrai solo le informazioni grezze.\n\n"
+    "- Non preoccuparti di collegare i fatti ora, estrai solo le informazioni grezze.\n"
+    "- Non aggiungere nient'altro che non sia esplicitamente chiesto\n\n"
     "TESTO:\n{context}"
 )
