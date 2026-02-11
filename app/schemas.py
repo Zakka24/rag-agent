@@ -5,7 +5,8 @@ class ChatRequest(BaseModel):
     question: str
 
 class ChatResponse(BaseModel):
-    answer: str
+    answer: Optional[str] = None
+    status: Optional[str] = None
     reasoning: Optional[str] = None
 
 class UploadResponse(BaseModel):

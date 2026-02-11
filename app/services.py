@@ -34,6 +34,17 @@ class RagService:
             "error": session.get("error_message")
         }
     
+    def get_chat_status(self, user_id: str):
+        session = self.get_session(user_id)
+        if not session:
+            return {"status": "not_found"}
+        
+        return {
+            "status": session.get("chat_status", "idle"),
+            "result": session.get("chat_last_result"),
+            "error": session.get("chat_error")
+        }
+    
     def run_async_analysis(self, user_id: str):
         try:
             print(f"[{user_id}] Avvio analisi asincrona...")
@@ -202,21 +213,49 @@ class RagService:
         return {
             "message": "Upload ricevuto. Analisi avviata in background.",
             "file_names": ", ".join(filenames),
-            "standard_info": None, # Non c'è ancora
+            "standard_info": None,
             "file_already_exists": False,
-            "status": "processing" # <--- Segnala al frontend di aspettare
+            "status": "processing"
         }
+    
+    def run_background_chat(self, user_id: str, question: str):
+        try:
+            session = self.get_session(user_id)
+            if not session:
+                return
 
-    def ask_question(self, user_id: str, question: str) -> str:
+            print(f"[{user_id}] Elaborazione domanda chat in background...")
+            chat: PdfChat = session["chat"]
+            response = chat.ask(question)
+            
+            response["answer"] = response["answer"] + DISCLAIMER
+            
+            session["chat_status"] = "completed"
+            session["chat_last_result"] = response
+            print(f"[{user_id}] Risposta chat pronta.")
+
+        except Exception as e:
+            print(f"[{user_id}] Errore chat background: {e}")
+            if user_id in self.sessions:
+                self.sessions[user_id]["chat_status"] = "error"
+                self.sessions[user_id]["chat_error"] = str(e)
+
+    def ask_question(self, user_id: str, question: str, background_tasks: BackgroundTasks) -> dict:
         session = self.get_session(user_id)
         if not session:
             raise HTTPException(status_code=400, detail="Nessun PDF caricato.")
         
-        chat: PdfChat = session["chat"]
-        response = chat.ask(question)
+        session["chat_status"] = "processing"
+        session["chat_last_result"] = None
+        session["chat_error"] = None
 
-        # print(response)
-        
-        response["answer"] = response["answer"] + DISCLAIMER
-        
-        return response
+        print(f"[{user_id}] Question: {question}")
+
+
+        background_tasks.add_task(self.run_background_chat, user_id, question)
+
+        return {
+            "status": "processing",
+            "answer": None,
+            "reasoning": None
+        }

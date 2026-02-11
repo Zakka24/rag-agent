@@ -39,11 +39,13 @@ async def upload_pdf(
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
     req: ChatRequest, 
+    background_tasks: BackgroundTasks,
     x_user_id: str = Header(...),
     service: RagService = Depends(get_rag_service)
 ):
-    result = service.ask_question(x_user_id, req.question)
+    result = service.ask_question(x_user_id, req.question, background_tasks)
     return ChatResponse(
+        status=result["status"],
         answer=result["answer"],
         reasoning=result["reasoning"]
     )
@@ -54,3 +56,10 @@ async def check_status(
     service: RagService = Depends(get_rag_service)
 ):
     return service.get_analysis_status(x_user_id)
+
+@router.get("/chat_status")
+async def chat_status_endpoint(
+    x_user_id: str = Header(...),
+    service: RagService = Depends(get_rag_service)
+):
+    return service.get_chat_status(x_user_id)
